@@ -5,63 +5,87 @@ namespace App\Http\Controllers;
 use App\Models\Payslip;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class PayslipController extends Controller
 {
-    // GET /payslips
+    
     public function index()
     {
-        return response()->json(Payslip::with('employee', 'statuses')->get());
+        try {
+            $payslips = Payslip::with(['employee', 'statuses'])->get();
+            return response()->json($payslips);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch payslips: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch payslips.'], 500);
+        }
     }
 
-    // POST /payslips
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'period_start' => 'required|date',
-            'period_end' => 'required|date|after_or_equal:period_start',
-            'basic_pay' => 'required|numeric',
-            'allowances' => 'nullable|numeric',
-            'deductions' => 'nullable|numeric',
-            'net_pay' => 'required|numeric',
+        $validated = $request->validate([
+            'employee_id'   => 'required|exists:employees,id',
+            'period_start'  => 'required|date',
+            'period_end'    => 'required|date|after_or_equal:period_start',
+            'basic_pay'     => 'required|numeric',
+            'allowances'    => 'nullable|numeric',
+            'deductions'    => 'nullable|numeric',
+            'net_pay'       => 'required|numeric',
         ]);
 
-        $data['id'] = Str::uuid();
-        $payslip = Payslip::create($data);
+        $validated['id'] = (string) Str::uuid();
+        
+        
 
-        return response()->json($payslip, 201);
+        try {
+            $payslip = Payslip::create($validated);
+            return response()->json($payslip, 201);
+        } catch (\Exception $e) {
+            Log::error('Failed to create payslip: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to create payslip.'], 500);
+        }
     }
 
-    // GET /payslips/{payslip}
     public function show(Payslip $payslip)
     {
-        return response()->json($payslip->load('employee', 'statuses'));
+        try {
+            $payslip->load(['employee', 'statuses']);
+            return response()->json($payslip);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch payslip: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch payslip.'], 500);
+        }
     }
 
-    // PUT /payslips/{payslip}
     public function update(Request $request, Payslip $payslip)
     {
-        $data = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'period_start' => 'required|date',
-            'period_end' => 'required|date|after_or_equal:period_start',
-            'basic_pay' => 'required|numeric',
-            'allowances' => 'nullable|numeric',
-            'deductions' => 'nullable|numeric',
-            'net_pay' => 'required|numeric',
+        $validated = $request->validate([
+            'employee_id'   => 'required|exists:employees,id',
+            'period_start'  => 'required|date',
+            'period_end'    => 'required|date|after_or_equal:period_start',
+            'basic_pay'     => 'required|numeric',
+            'allowances'    => 'nullable|numeric',
+            'deductions'    => 'nullable|numeric',
+            'net_pay'       => 'required|numeric',
         ]);
 
-        $payslip->update($data);
-
-        return response()->json($payslip);
+        try {
+            $payslip->update($validated);
+            return response()->json($payslip);
+        } catch (\Exception $e) {
+            Log::error('Failed to update payslip: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to update payslip.'], 500);
+        }
     }
 
-    // DELETE /payslips/{payslip}
     public function destroy(Payslip $payslip)
     {
-        $payslip->delete();
-
-        return response()->json(['message' => 'Payslip deleted successfully.']);
+        try {
+            $payslip->delete();
+            return response()->json(['message' => 'Payslip deleted successfully.']);
+        } catch (\Exception $e) {
+            Log::error('Failed to delete payslip: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to delete payslip.'], 500);
+        }
     }
 }
