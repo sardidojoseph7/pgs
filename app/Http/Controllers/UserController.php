@@ -8,73 +8,61 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function getUsers(){
-        $users = User::with('role', 'userStatus')->get();
-
-        return response()->json(['users' => $users]);
+    public function index()
+    {
+        return response()->json(User::with(['role', 'userStatus'])->get());
     }
 
-    public function addUser(Request $request){
-        $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'middle_name' => ['nullable', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8'],
-            'role_id' => ['required', 'exists:roles,id'],
-            'user_status_id' => ['required', 'exists:user_statuses,id'],
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'first_name'      => 'required|string|max:255',
+            'middle_name'     => 'nullable|string|max:255',
+            'last_name'       => 'required|string|max:255',
+            'email'           => 'required|email|unique:users,email',
+            'password'        => 'required|string|min:6|confirmed',
+            'role_id'         => 'required|exists:roles,id',
+            'user_status_id'  => 'nullable|exists:user_statuses,id',
         ]);
 
-        $user = User::create([
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
-            'user_status_id' => $request->user_status_id,
-        ]);
+        $data['password'] = Hash::make($data['password']);
+        $user = User::create($data);
 
-        return response()->json(['message' => 'User successfully created!', 'user' => $user]);
+        return response()->json($user->load(['role', 'userStatus']), 201);
     }
 
-    public function editUser(Request $request, $id){
-        $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'middle_name' => ['nullable', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $id],
-            'role_id' => ['required', 'exists:roles,id'],
-            'user_status_id' => ['required', 'exists:user_statuses,id'],
+    public function show(User $user)
+    {
+        return response()->json($user->load(['role', 'userStatus']));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'first_name'      => 'required|string|max:255',
+            'middle_name'     => 'nullable|string|max:255',
+            'last_name'       => 'required|string|max:255',
+            'email'           => 'required|email|unique:users,email,' . $user->id,
+            'password'        => 'nullable|string|min:6|confirmed',
+            'role_id'         => 'required|exists:roles,id',
+            'user_status_id'  => 'nullable|exists:user_statuses,id',
         ]);
 
-        $user = User::find($id);
-
-        if(!$user){
-            return response()->json(['message' => 'User not found!'], 404);
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
         }
 
-        $user->update([
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'role_id' => $request->role_id,
-            'user_status_id' => $request->user_status_id,
-        ]);
+        $user->update($data);
 
-        return response()->json(['message' => 'User successfully edited!', 'user' => $user]);
+        return response()->json($user->load(['role', 'userStatus']));
     }
 
-    public function deleteUser($id){
-        $user = User::find($id);
-
-        if(!$user){
-            return response()->json(['message' => 'User not found!'], 404);
-        }
-
+    public function destroy(User $user)
+    {
         $user->delete();
 
-        return response()->json(['message' => 'User successfully deleted!']);
+        return response()->json(['message' => 'User deleted successfully.']);
     }
 }
